@@ -22,7 +22,7 @@ def load_split():
     return documents
 
 _TEMPLATE = """Dada a conversa a seguir e uma pergunta de acompanhamento, reformule a frase 
-pergunta de acompanhamento para ser uma pergunta independente, em seu idioma original.
+pergunta de acompanhamento para ser uma pergunta independente, em português.
 
 Chat History:
 {chat_history}
@@ -57,12 +57,15 @@ def _format_chat_history(chat_history: List[Tuple]) -> str:
         buffer += "\n" + "\n".join([human, ai])
     return buffer
 
-
-vectorstore = FAISS.from_documents(load_split(), embedding=HuggingFaceEmbeddings())
-retriever = vectorstore.as_retriever()
+# Recuperação do vectorDataBase
+def retriever_vector_db():
+    vectorstore = FAISS.from_documents(load_split(), embedding=HuggingFaceEmbeddings())
+    retriever = vectorstore.as_retriever()
+    return retriever
 
 llm = Ollama(model="llama3")
 
+# criando uma chain para usar como entrada para a LLM
 _inputs = RunnableMap(
     standalone_question=RunnablePassthrough.assign(
         chat_history=lambda x: _format_chat_history(x["chat_history"])
@@ -72,12 +75,12 @@ _inputs = RunnableMap(
     | StrOutputParser(),
 )
 _context = {
-    "context": itemgetter("standalone_question") | retriever | _combine_documents,
+    "context": itemgetter("standalone_question") | retriever_vector_db() | _combine_documents,
     "question": lambda x: x["standalone_question"],
 }
 
 
-# User input
+#Entrada do usuario
 class ChatHistory(BaseModel):
     """Chat history with the bot."""
 
